@@ -1,0 +1,69 @@
+import os
+import random
+import base64
+
+# 1. ფაილის წაკითხვა (IV.bin)
+def read_iv_file(filename):
+    with open(filename, 'rb') as file:
+        iv = file.read()
+    return iv
+
+# 2. Diffie-Hellman გამოთვლები
+def diffie_hellman_calc(p, g, a, b):
+    A = pow(g, a, p)
+    B = pow(g, b, p)
+    s = pow(B, a, p)
+    return A, B, s
+
+# 3. ტექსტის მარტივი XOR შიფრაცია
+def simple_encrypt(text, key):
+    key = key.encode() if isinstance(key, str) else key
+    encrypted = bytearray()
+    for i, char in enumerate(text):
+        encrypted.append(char ^ key[i % len(key)])
+    return base64.b64encode(encrypted).decode()
+
+# 4. ახალი DH პარამეტრებისა და გასაღებების გენერაცია
+def generate_dh_params():
+    p = 2**255 - 19  # მარტივი რიცხვი (Curve25519-ის p)
+    g = 2  # გენერატორი
+    a = random.randint(1, p-2)  # პირადი გასაღები
+    A = pow(g, a, p)  # საჯარო გასაღები
+    return p, g, a, A
+
+# მთავარი ფუნქცია
+def main():
+    # 1. IV ფაილის წაკითხვა
+    iv = read_iv_file("IV.bin")
+    print(f"IV from file: {iv.hex()}")
+
+    # 2. DH გამოთვლები
+    p, g, a, b = 23, 5, 5, 13
+    A, B, s = diffie_hellman_calc(p, g, a, b)
+    dh_result = f"Alice's public key: {A}\nBob's public key: {B}\nShared secret: {s}"
+    print(dh_result)
+    
+    # შედეგის ჩაწერა ფაილში
+    with open("dh_result.txt", 'w') as file:
+        file.write(dh_result)
+
+    # 3. ფაილის შიფრაცია
+    with open("dh_result.txt", 'r') as file:
+        plaintext = file.read()
+    key = str(s)  # გამოვიყენოთ საერთო საიდუმლო როგორც გასაღები
+    encrypted = simple_encrypt(plaintext.encode(), key)
+    with open("dh_result.txt.enc", 'w') as file:
+        file.write(encrypted)
+    print("File encrypted and saved as dh_result.txt.enc")
+
+    # 4. ახალი DH პარამეტრების გენერაცია
+    new_p, new_g, new_a, new_A = generate_dh_params()
+    print(f"New DH parameters:\np: {new_p}\ng: {new_g}\nPublic key: {new_A}")
+    
+    # შევინახოთ ახალი პარამეტრები ფაილში
+    with open("new_dh_params.txt", 'w') as file:
+        file.write(f"p: {new_p}\ng: {new_g}\na: {new_a}\nA: {new_A}")
+    print("New DH parameters saved in new_dh_params.txt")
+
+if __name__ == "__main__":
+    main()
